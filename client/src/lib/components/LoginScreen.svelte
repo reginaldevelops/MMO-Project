@@ -1,19 +1,27 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { getDefaultServerUrl } from '../utils/networkUtils'
   import AnnouncementsPanel from './AnnouncementsPanel.svelte'
 
   const GSI_SRC = 'https://accounts.google.com/gsi/client'
+  let gsiButtonRendered = false
 
   interface Props {
     onLogin: (
       serverUrl: string,
       googleIdToken: string
     ) => Promise<{ ok: boolean; message?: string }>
+    onDevLogin?: (
+      serverUrl: string,
+      devName: string
+    ) => Promise<{ ok: boolean; message?: string }>
     kickedMessage?: string
   }
 
-  let { onLogin, kickedMessage }: Props = $props()
+  let { onLogin, onDevLogin, kickedMessage }: Props = $props()
+
+  const showDevLogin = import.meta.env.DEV && !!onDevLogin
+  let devName = $state('regi')
 
   let isConnecting = $state(false)
   let errorMessage = $state('')
@@ -57,6 +65,27 @@
     }
   }
 
+  async function handleDevLoginClick() {
+    if (!onDevLogin || isConnecting) return
+    errorMessage = ''
+    isConnecting = true
+    try {
+      const trimmed = devName.trim()
+      if (!trimmed) {
+        errorMessage = 'Enter a dev account name'
+        return
+      }
+      const result = await onDevLogin(getDefaultServerUrl(), trimmed)
+      if (!result.ok) {
+        errorMessage = result.message ?? 'Dev login failed'
+      }
+    } catch (e) {
+      errorMessage = e instanceof Error ? e.message : 'Dev login failed'
+    } finally {
+      isConnecting = false
+    }
+  }
+
   onMount(async () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
     if (!clientId) {
@@ -80,12 +109,16 @@
     googleId.initialize({
       client_id: clientId,
       callback: (response) => void handleCredential(response),
-      auto_select: true,
-      itp_support: true,
-      use_fedcm_for_prompt: true,
+      auto_select: false,
+      itp_support: false,
+      use_fedcm_for_prompt: false,
+      use_fedcm_for_button: false,
     })
-    // Auto sign-in for returning users; button below is the fallback.
-    googleId.prompt()
+
+    if (gsiButtonRendered) return
+    gsiButtonRendered = true
+    buttonContainer.replaceChildren()
+
     googleId.renderButton(buttonContainer, {
       theme: 'filled_blue',
       size: 'large',
@@ -93,6 +126,10 @@
       shape: 'pill',
       width: 280,
     })
+  })
+
+  onDestroy(() => {
+    window.google?.accounts?.id.cancel()
   })
 </script>
 
@@ -139,7 +176,7 @@
         >
       </text>
     </svg>
-    <h1 class="title">OpenMMO</h1>
+    <h1 class="title">OpenMMO by Regi</h1>
 
     <div class="login-panel">
       {#if kickedMessage}
@@ -156,6 +193,31 @@
           <div class="connecting-label">Connecting...</div>
         {/if}
       </div>
+
+      {#if showDevLogin}
+        <div class="dev-login">
+          <p class="dev-login-label">Local dev (no Google)</p>
+          <div class="dev-login-row">
+            <span class="dev-prefix">dev_</span>
+            <input
+              class="dev-input"
+              type="text"
+              bind:value={devName}
+              disabled={isConnecting}
+              maxlength="28"
+              autocomplete="username"
+            />
+          </div>
+          <button
+            class="dev-login-btn"
+            type="button"
+            disabled={isConnecting}
+            onclick={() => void handleDevLoginClick()}
+          >
+            Dev login
+          </button>
+        </div>
+      {/if}
     </div>
 
     <AnnouncementsPanel />
@@ -282,6 +344,62 @@
     font-size: 13px;
     font-family:
       -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .dev-login {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #4a5568;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dev-login-label {
+    margin: 0;
+    color: #718096;
+    font-size: 12px;
+    text-align: center;
+    font-family:
+      -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .dev-login-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dev-prefix {
+    color: #a0aec0;
+    font-size: 14px;
+    font-family: ui-monospace, monospace;
+  }
+
+  .dev-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid #4a5568;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    font-size: 14px;
+  }
+
+  .dev-login-btn {
+    padding: 10px 16px;
+    border: 1px solid #63b3ed;
+    border-radius: 6px;
+    background: rgba(99, 179, 237, 0.15);
+    color: #90cdf4;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .dev-login-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   @media (max-width: 600px), (max-height: 700px) {

@@ -110,6 +110,11 @@ pub enum ClientMessage {
         account_name: String,
         npc_token: String,
     },
+    /// Localhost-only dev login (server must be started with --dev-auth).
+    /// Account names must start with `dev_`.
+    AuthenticateDev {
+        account_name: String,
+    },
     CreateCharacter {
         character_name: String,
         character_class: CharacterClass,

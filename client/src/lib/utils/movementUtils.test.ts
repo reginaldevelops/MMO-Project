@@ -40,9 +40,9 @@ describe('getMovementMode', () => {
 
 describe('getAccelDistance / getDecelDistance', () => {
   it('matches kinematic formula v^2 / (2a) for defaults', () => {
-    // maxSpeed=3, accel=6 → 9 / 12 = 0.75
-    expect(getAccelDistance(DEFAULT_MOVEMENT_CONFIG)).toBeCloseTo(0.75)
-    expect(getDecelDistance(DEFAULT_MOVEMENT_CONFIG)).toBeCloseTo(0.75)
+    // maxSpeed=5, accel=10 → 25 / 20 = 1.25
+    expect(getAccelDistance(DEFAULT_MOVEMENT_CONFIG)).toBeCloseTo(1.25)
+    expect(getDecelDistance(DEFAULT_MOVEMENT_CONFIG)).toBeCloseTo(1.25)
   })
 
   it('scales with maxSpeed squared', () => {
@@ -146,15 +146,15 @@ describe('calculateMovementStep', () => {
     const state = initMovementState({ x: 0, y: 0, z: 0 }, target)
     const dt = 0.1
     const result = calculateMovementStep({ x: 0, y: 0, z: 0 }, state, cfg, dt)
-    // newSpeed = 0 + accel * dt = 6 * 0.1 = 0.6
-    expect(result.newSpeed).toBeCloseTo(0.6)
+    // newSpeed = 0 + accel * dt = 10 * 0.1 = 1.0
+    expect(result.newSpeed).toBeCloseTo(1.0)
     expect(result.arrived).toBe(false)
   })
 
   it('caps acceleration at maxSpeed', () => {
     const target: Position = { x: 100, y: 0, z: 0 }
     const state = initMovementState({ x: 0, y: 0, z: 0 }, target)
-    state.currentSpeed = 2.9
+    state.currentSpeed = 4.9
     const result = calculateMovementStep(
       { x: 0.1, y: 0, z: 0 },
       state,
@@ -168,7 +168,7 @@ describe('calculateMovementStep', () => {
     const target: Position = { x: 100, y: 0, z: 0 }
     const state = initMovementState({ x: 0, y: 0, z: 0 }, target)
     state.currentSpeed = cfg.maxSpeed
-    // Past accel distance (0.75), far from decel zone
+    // Past accel distance (1.25), far from decel zone
     const result = calculateMovementStep({ x: 50, y: 0, z: 0 }, state, cfg, 0.1)
     expect(result.newSpeed).toBe(cfg.maxSpeed)
   })
@@ -177,7 +177,7 @@ describe('calculateMovementStep', () => {
     const target: Position = { x: 5, y: 0, z: 0 }
     const state = initMovementState({ x: 0, y: 0, z: 0 }, target)
     state.currentSpeed = cfg.maxSpeed
-    // 0.5 remaining < decel distance 0.75
+    // 0.5 remaining < decel distance 1.25
     const result = calculateMovementStep(
       { x: 4.5, y: 0, z: 0 },
       state,
@@ -223,10 +223,10 @@ describe('calculateMovementStep', () => {
   it('moves along XZ direction proportional to speed*dt', () => {
     const target: Position = { x: 100, y: 0, z: 0 }
     const state = initMovementState({ x: 0, y: 0, z: 0 }, target)
-    state.currentSpeed = 3
+    state.currentSpeed = cfg.maxSpeed
     const result = calculateMovementStep({ x: 10, y: 5, z: 0 }, state, cfg, 0.1)
-    // moveDistance = 3 * 0.1 = 0.3, all along +X
-    expect(result.newPos.x).toBeCloseTo(10.3)
+    // moveDistance = 5 * 0.1 = 0.5, all along +X
+    expect(result.newPos.x).toBeCloseTo(10.5)
     expect(result.newPos.z).toBeCloseTo(0)
     expect(result.newPos.y).toBe(5) // Y preserved
   })
@@ -240,7 +240,7 @@ describe('calculateMovementStep', () => {
     const result = calculateMovementStep(start, state, cfg, 0.1)
 
     expect(result.arrived).toBe(false)
-    expect(result.newPos.x).toBeCloseTo(start.x + 0.3)
+    expect(result.newPos.x).toBeCloseTo(start.x + 0.5)
     expect(result.rotation).toBeCloseTo(Math.PI / 2)
   })
 
@@ -282,8 +282,8 @@ describe('calculateMovementStep', () => {
       cfg,
       0.1
     )
-    // moveDistance = 3 * 0.1 = 0.3 along dir (0.6, 0.8)
-    expect(result.newPos.x).toBeCloseTo(30 * 0.2 + 0.3 * 0.6)
-    expect(result.newPos.z).toBeCloseTo(40 * 0.2 + 0.3 * 0.8)
+    // moveDistance = 5 * 0.1 = 0.5 along dir (0.6, 0.8)
+    expect(result.newPos.x).toBeCloseTo(30 * 0.2 + 0.5 * 0.6)
+    expect(result.newPos.z).toBeCloseTo(40 * 0.2 + 0.5 * 0.8)
   })
 })

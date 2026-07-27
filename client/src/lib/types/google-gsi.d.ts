@@ -9,9 +9,12 @@ interface GoogleIdApi {
     callback: (response: GoogleCredentialResponse) => void
     auto_select?: boolean
     itp_support?: boolean
+    ux_mode?: 'popup' | 'redirect'
+    login_uri?: string
     use_fedcm_for_prompt?: boolean
+    use_fedcm_for_button?: boolean
   }): void
-  prompt(): void
+  cancel(): void
   renderButton(
     parent: HTMLElement,
     options: {
