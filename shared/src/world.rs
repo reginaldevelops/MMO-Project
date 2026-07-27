@@ -116,7 +116,7 @@ const _: () = assert!(EVENT_DELIVERY_RADIUS >= NPC_SIGHT_RADIUS);
 
 /// Player walk speed in units/sec. Client prediction, agent-client walks and
 /// the server's authoritative movement simulation must all agree on this.
-pub const PLAYER_MOVE_SPEED: f32 = 3.0;
+pub const PLAYER_MOVE_SPEED: f32 = 5.0;
 
 /// Axis-aligned rectangular zone where monsters must not spawn (e.g. towns).
 #[derive(Debug, Clone, Serialize, Deserialize)]

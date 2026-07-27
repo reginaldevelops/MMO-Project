@@ -190,6 +190,10 @@ struct Args {
     /// generated on first run)
     #[arg(long, env = "NPC_AUTH_TOKEN")]
     npc_token: Option<String>,
+
+    /// Allow localhost dev login (AuthenticateDev). Never enable in production.
+    #[arg(long, env = "DEV_AUTH", default_value_t = false)]
+    dev_auth: bool,
 }
 
 /// Read the NPC token file, generating a random one on first run so local
@@ -286,10 +290,14 @@ async fn main() {
     if admin_emails.is_empty() {
         warn!("No --admin-emails / ADMIN_EMAILS set: REST writes require the NPC token");
     }
+    if args.dev_auth {
+        warn!("DEV AUTH ENABLED: localhost dev login is active — do not use in production");
+    }
     let auth_ctx = Arc::new(AuthContext {
         google,
         npc_token,
         admin_emails,
+        dev_auth: args.dev_auth,
     });
     let initial_game_time = match auth_service.load_world_time() {
         Ok(Some(saved)) => {

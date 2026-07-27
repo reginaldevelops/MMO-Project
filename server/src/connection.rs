@@ -28,6 +28,13 @@ use tracing::{debug, error, info, warn};
 
 const FALLBACK_DEFAULT_MAX_HP: u32 = 13;
 
+fn is_loopback(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => v4.is_loopback(),
+        IpAddr::V6(v6) => v6.is_loopback(),
+    }
+}
+
 /// Credential checkers shared by every connection and the REST API.
 pub struct AuthContext {
     /// None when the server was started without a Google client id; browser
@@ -36,6 +43,8 @@ pub struct AuthContext {
     pub npc_token: String,
     /// Google account emails allowed to call REST write endpoints.
     pub admin_emails: Vec<String>,
+    /// Allow AuthenticateDev from loopback only (--dev-auth).
+    pub dev_auth: bool,
 }
 
 impl AuthContext {
@@ -640,7 +649,9 @@ async fn handle_client_message(
 
     if matches!(
         client_msg,
-        ClientMessage::Authenticate { .. } | ClientMessage::AuthenticateNpc { .. }
+        ClientMessage::Authenticate { .. }
+            | ClientMessage::AuthenticateNpc { .. }
+            | ClientMessage::AuthenticateDev { .. }
     ) && state.account_name.is_some()
     {
         warn!("Client is already authenticated");
@@ -718,6 +729,38 @@ async fn handle_client_message(
             };
 
             return Ok(finish_auth(auth_service, state, account_name, true));
+        }
+
+        ClientMessage::AuthenticateDev { account_name } => {
+            if !auth_ctx.dev_auth {
+                warn!("Dev login attempted but --dev-auth is not enabled");
+                return Ok(vec![ServerMessage::AuthError {
+                    message: "Dev login is not enabled on this server".to_string(),
+                }]);
+            }
+            if !is_loopback(state.client_ip) {
+                warn!(
+                    "Dev login rejected for account {:?}: not loopback ({})",
+                    account_name, state.client_ip
+                );
+                return Ok(vec![ServerMessage::AuthError {
+                    message: "Dev login is only allowed from localhost".to_string(),
+                }]);
+            }
+
+            let account_name = match auth_service.login_dev(&account_name) {
+                Ok(name) => name,
+                Err(err) => {
+                    warn!("Dev login failed for {:?}: {}", account_name, err);
+                    return Ok(vec![ServerMessage::AuthError {
+                        message: err.client_message().to_string(),
+                    }]);
+                }
+            };
+            info!("Dev account '{}' authenticated from {}", account_name, state.client_ip);
+
+            state.admin_eligible = false;
+            return Ok(finish_auth(auth_service, state, account_name, false));
         }
 
         ClientMessage::CreateCharacter {

@@ -107,9 +107,9 @@ export function getMovementMode(
 
 // Default movement configuration
 export const DEFAULT_MOVEMENT_CONFIG: MovementConfig = {
-  maxSpeed: 3, // units per second
-  acceleration: 6, // units per second squared
-  deceleration: 6, // units per second squared
+  maxSpeed: 5,
+  acceleration: 10,
+  deceleration: 10,
   arrivalThreshold: 0.05,
 }
 

@@ -136,6 +136,30 @@
     return result
   }
 
+  async function handleDevLogin(
+    url: string,
+    devName: string
+  ): Promise<{ ok: boolean; message?: string }> {
+    kickedMessage = ''
+    const devAccount = devName.startsWith('dev_') ? devName : `dev_${devName}`
+    const result = await networkManager.requestDevAuthentication(
+      url,
+      devAccount
+    )
+
+    if (result.ok) {
+      const characters = result.characters ?? []
+      serverUrl = url
+      accountName = result.accountName ?? devAccount
+      accountCharacters = characters
+      selectedCharacterId = characters.length > 0 ? characters[0].id : null
+      screen = 'character-select'
+      return { ok: true }
+    }
+
+    return result
+  }
+
   async function handleCreateCharacter(
     characterName: string,
     characterClass: CharacterClass,
@@ -391,7 +415,7 @@
       onCancel={handleCancelCreateCharacter}
     />
   {:else}
-    <LoginScreen onLogin={handleLogin} {kickedMessage} />
+    <LoginScreen onLogin={handleLogin} onDevLogin={handleDevLogin} {kickedMessage} />
   {/if}
 
   {#if screen !== 'game'}
