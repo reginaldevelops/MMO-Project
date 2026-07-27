@@ -19,6 +19,9 @@ const STARTER_ITEMS: &[(&str, u32, Option<&str>)] = &[
 /// Reserved account-name prefix for headless NPC/bot accounts.
 pub const NPC_ACCOUNT_PREFIX: &str = "npc_";
 
+/// Reserved account-name prefix for localhost dev-login accounts.
+pub const DEV_ACCOUNT_PREFIX: &str = "dev_";
+
 const MAX_NAME_CHARS: usize = 32;
 
 /// Names end up in logs, chat and the UI, so allowlist characters instead of
@@ -569,6 +572,47 @@ impl AuthService {
         if !account_name.starts_with(NPC_ACCOUNT_PREFIX) {
             return Err(AuthError::InvalidInput(
                 "NPC account names must start with 'npc_'",
+            ));
+        }
+        if !valid_name(account_name) {
+            return Err(AuthError::InvalidInput(
+                "Account name is too long or contains invalid characters",
+            ));
+        }
+
+        let conn = self.open_connection()?;
+        let existing_sub: Option<Option<String>> = conn
+            .query_row(
+                "SELECT google_sub FROM accounts WHERE player_name = ?1",
+                params![account_name],
+                |row| row.get(0),
+            )
+            .optional()?;
+
+        match existing_sub {
+            Some(None) => Ok(account_name.to_string()),
+            Some(Some(_)) => Err(AuthError::InvalidInput(
+                "Account name belongs to a player account",
+            )),
+            None => {
+                conn.execute(
+                    "INSERT INTO accounts (player_name) VALUES (?1)",
+                    params![account_name],
+                )?;
+                Ok(account_name.to_string())
+            }
+        }
+    }
+
+    /// Log in a localhost dev account, creating it on first use.
+    pub fn login_dev(&self, account_name: &str) -> Result<String, AuthError> {
+        let account_name = account_name.trim();
+        if account_name.is_empty() {
+            return Err(AuthError::InvalidInput("Account name is required"));
+        }
+        if !account_name.starts_with(DEV_ACCOUNT_PREFIX) {
+            return Err(AuthError::InvalidInput(
+                "Dev account names must start with 'dev_'",
             ));
         }
         if !valid_name(account_name) {

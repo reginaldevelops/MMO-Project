@@ -60,6 +60,9 @@ export default defineConfig(({ mode }) => {
         '/api': { target: apiTarget, changeOrigin: true },
         '/ws': { target: wsTarget, ws: true, changeOrigin: true },
       },
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
+      },
     },
     build: { target: 'esnext' },
     optimizeDeps: { esbuildOptions: { target: 'esnext' } },

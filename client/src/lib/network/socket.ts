@@ -638,6 +638,12 @@ class NetworkManager {
     })
   }
 
+  private authenticateWithDev(accountName: string): boolean {
+    return this.sendAndSerialize({
+      AuthenticateDev: { account_name: accountName },
+    })
+  }
+
   /// Drop cached credentials so a later reconnect can't re-auth as this user.
   /// Call on logout/kick, not on transient disconnects (which must reconnect).
   clearSession() {
@@ -681,6 +687,48 @@ class NetworkManager {
         )
         return {
           send: () => this.authenticateWithGoogle(googleIdToken),
+          notSentResult: { ok: false, message: 'Socket is not connected' },
+        }
+      }
+    )
+  }
+
+  async requestDevAuthentication(
+    serverUrl: string,
+    accountName: string
+  ): Promise<{
+    ok: boolean
+    message?: string
+    accountName?: string
+    characters?: AccountCharacter[]
+  }> {
+    await this.ensureWasm()
+    this.connect(serverUrl)
+    const opened = await this.waitForSocketOpen(5000)
+    if (!opened) {
+      return { ok: false, message: 'Failed to connect to server' }
+    }
+
+    return this.requestWithTimeout(
+      8000,
+      'Authentication timed out',
+      (settle, onCleanup) => {
+        onCleanup(
+          this.authSuccess.on((payload) => {
+            settle({
+              ok: true,
+              accountName: payload.accountName,
+              characters: payload.characters,
+            })
+          })
+        )
+        onCleanup(
+          this.authError.on((message) => {
+            settle({ ok: false, message })
+          })
+        )
+        return {
+          send: () => this.authenticateWithDev(accountName),
           notSentResult: { ok: false, message: 'Socket is not connected' },
         }
       }
